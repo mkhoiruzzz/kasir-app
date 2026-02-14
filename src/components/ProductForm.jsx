@@ -42,10 +42,10 @@ const ProductForm = () => {
             const { error } = await supabase.from('products').insert([
                 {
                     name: formData.name,
-                    price: formData.price,
-                    selling_price: formData.selling_price,
-                    sachet_price: formData.sachet_price || 0,
-                    stock: formData.stock,
+                    price: formData.price === '' ? 0 : formData.price,
+                    selling_price: formData.selling_price === '' ? 0 : formData.selling_price,
+                    sachet_price: formData.sachet_price === '' ? 0 : formData.sachet_price,
+                    stock: formData.stock === '' ? 0 : formData.stock,
                     category_id: formData.category_id
                 }
             ]);

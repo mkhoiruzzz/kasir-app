@@ -96,10 +96,10 @@ const ProductTable = () => {
                 .from('products')
                 .update({
                     name: editForm.name,
-                    price: editForm.price,
-                    selling_price: editForm.selling_price,
-                    sachet_price: editForm.sachet_price,
-                    stock: editForm.stock,
+                    price: editForm.price === '' ? 0 : editForm.price,
+                    selling_price: editForm.selling_price === '' ? 0 : editForm.selling_price,
+                    sachet_price: editForm.sachet_price === '' ? 0 : editForm.sachet_price,
+                    stock: editForm.stock === '' ? 0 : editForm.stock,
                     category_id: editForm.category_id
                 })
                 .eq('id', editProduct.id);
