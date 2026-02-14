@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import styles from '../styles/ProductTable.module.css';
+import { supabase } from '../supabaseClient';
 
 const ProductTable = () => {
     // 1. State Declarations
@@ -15,25 +16,41 @@ const ProductTable = () => {
     // 2. Fetch Functions
     const fetchCategories = async () => {
         try {
-            const res = await fetch('http://localhost:5000/api/categories');
-            const data = await res.json();
+            const { data, error } = await supabase.from('categories').select('*').order('name', { ascending: true });
+            if (error) throw error;
             setCategories(data);
         } catch (err) {
-            console.error(err);
+            console.error('Error fetching categories:', err.message);
         }
     };
 
     const fetchProducts = async () => {
         setLoading(true);
         try {
-            const params = new URLSearchParams();
-            if (search) params.append('q', search);
-            if (filterCategory) params.append('category', filterCategory);
-            const res = await fetch(`http://localhost:5000/api/products/search?${params}`);
-            const data = await res.json();
-            setProducts(data);
+            let query = supabase
+                .from('products')
+                .select('*, categories(name)')
+                .order('created_at', { ascending: false });
+
+            if (search) {
+                query = query.ilike('name', `%${search}%`);
+            }
+            if (filterCategory) {
+                query = query.eq('category_id', filterCategory);
+            }
+
+            const { data, error } = await query;
+            if (error) throw error;
+
+            // Flatten category name for easier display
+            const formattedData = data.map(p => ({
+                ...p,
+                category_name: p.categories?.name
+            }));
+
+            setProducts(formattedData);
         } catch (err) {
-            console.error(err);
+            console.error('Error fetching products:', err.message);
         } finally {
             setLoading(false);
         }
@@ -52,10 +69,12 @@ const ProductTable = () => {
     const handleDelete = async (id) => {
         if (!window.confirm('Yakin ingin menghapus produk ini?')) return;
         try {
-            await fetch(`http://localhost:5000/api/products/${id}`, { method: 'DELETE' });
+            const { error } = await supabase.from('products').delete().eq('id', id);
+            if (error) throw error;
             fetchProducts();
         } catch (err) {
-            console.error(err);
+            console.error('Error deleting product:', err.message);
+            alert('Gagal menghapus produk: ' + err.message);
         }
     };
 
@@ -73,15 +92,25 @@ const ProductTable = () => {
 
     const handleEditSave = async () => {
         try {
-            await fetch(`http://localhost:5000/api/products/${editProduct.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(editForm)
-            });
+            const { error } = await supabase
+                .from('products')
+                .update({
+                    name: editForm.name,
+                    price: editForm.price,
+                    selling_price: editForm.selling_price,
+                    sachet_price: editForm.sachet_price,
+                    stock: editForm.stock,
+                    category_id: editForm.category_id
+                })
+                .eq('id', editProduct.id);
+
+            if (error) throw error;
+
             setEditProduct(null);
             fetchProducts();
         } catch (err) {
-            console.error(err);
+            console.error('Error updating product:', err.message);
+            alert('Gagal mengupdate produk: ' + err.message);
         }
     };
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import styles from '../styles/Dashboard.module.css';
+import { supabase } from '../supabaseClient';
 
 const Dashboard = () => {
     const [stats, setStats] = useState({ totalProducts: 0, totalCategories: 0, lowStock: 0 });
@@ -13,21 +14,36 @@ const Dashboard = () => {
 
     const fetchData = async () => {
         try {
-            const [productsRes, categoriesRes] = await Promise.all([
-                fetch('http://localhost:5000/api/products'),
-                fetch('http://localhost:5000/api/categories')
-            ]);
-            const products = await productsRes.json();
-            const categories = await categoriesRes.json();
+            // Fetch Products
+            const { data: products, error: prodError } = await supabase
+                .from('products')
+                .select('*, categories(name)')
+                .order('created_at', { ascending: false });
+
+            if (prodError) throw prodError;
+
+            // Fetch Categories count (using head: true for count only)
+            const { count: catCount, error: catError } = await supabase
+                .from('categories')
+                .select('*', { count: 'exact', head: true });
+
+            if (catError) throw catError;
 
             setStats({
                 totalProducts: products.length,
-                totalCategories: categories.length,
+                totalCategories: catCount,
                 lowStock: products.filter(p => p.stock < 10).length
             });
-            setRecentProducts(products.slice(0, 5));
+
+            // Flatten category name for recent products
+            const formattedRecent = products.slice(0, 5).map(p => ({
+                ...p,
+                category_name: p.categories?.name
+            }));
+
+            setRecentProducts(formattedRecent);
         } catch (error) {
-            console.error('Error fetching data:', error);
+            console.error('Error fetching dashboard data:', error.message);
         } finally {
             setLoading(false);
         }

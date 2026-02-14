@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styles from '../styles/ProductForm.module.css';
+import { supabase } from '../supabaseClient';
 
 const ProductForm = () => {
     const [categories, setCategories] = useState([]);
@@ -20,8 +21,8 @@ const ProductForm = () => {
 
     const fetchCategories = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/categories');
-            const data = await response.json();
+            const { data, error } = await supabase.from('categories').select('*').order('name', { ascending: true });
+            if (error) throw error;
             setCategories(data);
         } catch (error) {
             console.error('Error fetching categories:', error);
@@ -38,20 +39,24 @@ const ProductForm = () => {
         setMessage({ type: '', text: '' });
 
         try {
-            const response = await fetch('http://localhost:5000/api/products', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
+            const { error } = await supabase.from('products').insert([
+                {
+                    name: formData.name,
+                    price: formData.price,
+                    selling_price: formData.selling_price,
+                    sachet_price: formData.sachet_price || 0,
+                    stock: formData.stock,
+                    category_id: formData.category_id
+                }
+            ]);
 
-            if (response.ok) {
-                setMessage({ type: 'success', text: 'Produk berhasil ditambahkan!' });
-                setFormData({ name: '', price: '', selling_price: '', sachet_price: '', stock: '', category_id: formData.category_id });
-            } else {
-                setMessage({ type: 'error', text: 'Gagal menambahkan produk.' });
-            }
+            if (error) throw error;
+
+            setMessage({ type: 'success', text: 'Produk berhasil ditambahkan!' });
+            setFormData({ name: '', price: '', selling_price: '', sachet_price: '', stock: '', category_id: formData.category_id });
         } catch (error) {
-            setMessage({ type: 'error', text: 'Terjadi kesalahan jaringan.' });
+            console.error('Error adding product:', error);
+            setMessage({ type: 'error', text: 'Gagal menambahkan produk: ' + error.message });
         } finally {
             setLoading(false);
         }
